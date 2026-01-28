@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Renderer Test Page</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: #f6f7fb;
+        color: #111827;
+      }
+      header {
+        padding: 16px 24px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #ffffff;
+        font-weight: 600;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      .panel {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 70vh;
+      }
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        font-size: 14px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+      }
+      .panel h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .panel-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        color: #111827;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background: #f3f4f6;
+      }
+      textarea {
+        flex: 1;
+        border: 1px solid #e5e7eb;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        resize: none;
+        background: #ffffff !important;
+        color: #111827 !important;
+        white-space: pre-wrap;
+        pointer-events: auto;
+      }
+      body.loading textarea,
+      body.loading #texmeOutput {
+        visibility: hidden;
+      }
+      .output {
+        padding: 16px;
+        overflow: auto;
+        white-space: normal;
+      }
+      .output pre {
+        padding: 12px;
+        background: #f3f4f6;
+        color: #111827;
+        border-radius: 8px;
+        overflow: auto;
+        position: relative;
+      }
+      .output pre::before {
+        content: attr(data-language);
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        color: #ffffff;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        opacity: 0.9;
+      }
+      .output pre:not([data-language])::before {
+        content: 'CODE';
+      }
+      .output h1 { font-size: 1.6rem; margin: 0.8em 0 0.4em; }
+      .output h2 { font-size: 1.35rem; margin: 0.8em 0 0.4em; }
+      .output h3 { font-size: 1.15rem; margin: 0.8em 0 0.4em; }
+      .output h4 { font-size: 1rem; margin: 0.8em 0 0.4em; }
+      .output h5 { font-size: 0.95rem; margin: 0.8em 0 0.4em; }
+      .output h6 { font-size: 0.9rem; margin: 0.8em 0 0.4em; }
+      .output table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0;
+      }
+      .output th,
+      .output td {
+        border: 1px solid #e5e7eb;
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .output thead th {
+        background: #f3f4f6;
+        font-weight: 600;
+      }
+      .output code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      .output p code,
+      .output li code,
+      .output td code,
+      .output th code {
+        background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+        color: #ffffff;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+        white-space: nowrap;
+      }
+      .output blockquote {
+        margin: 16px 0;
+        padding: 16px 20px;
+        border-left: 4px solid #6b7280;
+        background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        color: #4a5568;
+        font-style: italic;
+      }
+      .output blockquote > :first-child {
+        margin-top: 0;
+      }
+      .output blockquote > :last-child {
+        margin-bottom: 0;
+      }
+      .output blockquote p {
+        margin: 8px 0;
+        line-height: 1.6;
+      }
+      
+      /* Syntax highlighting colors */
+      .hljs-keyword { color: #0000ff; font-weight: 600; }
+      .hljs-string { color: #a31515; }
+      .hljs-number { color: #098658; }
+      .hljs-comment { color: #008000; font-style: italic; }
+      .hljs-function { color: #795e26; }
+      .hljs-title { color: #795e26; font-weight: 600; }
+      .hljs-params { color: #001080; }
+      .hljs-attr { color: #e50000; }
+      .hljs-variable { color: #001080; }
+      .hljs-built_in { color: #267f99; }
+      .hljs-type { color: #267f99; }
+      .hljs-literal { color: #0000ff; }
+      .hljs-meta { color: #808080; }
+      .hljs-tag { color: #800000; }
+      .hljs-name { color: #800000; }
+      .hljs-property { color: #001080; }
+      .hljs-operator { color: #000000; }
+      .hljs-class { color: #267f99; font-weight: 600; }
+      
+      @media (max-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="./renderer.global.js"></script>
+  </head>
+  <body>
+    <header>Renderer Test Page — Markdown + LaTeX + Highlight.js</header>
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Input (Markdown + LaTeX)</h2>
+          <div class="panel-actions">
+            <button id="renderBtn" class="btn" type="button">Render</button>
+          </div>
+        </div>
+        <textarea id="texmeInput" aria-label="Texme input"></textarea>
+      </section>
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Output (markdown-it + KaTeX + highlight.js)</h2>
+        </div>
+        <div id="outputBox" class="output" aria-label="Rendered output"></div>
+      </section>
+    </div>
+    <script>
+      const input = document.getElementById('texmeInput');
+      const output = document.getElementById('outputBox');
+      const renderBtn = document.getElementById('renderBtn');
+
+      const renderer = window.createMarkdownRenderer();
+
+      const render = () => {
+        renderer.render(input.value, output);
+      };
+
+      // Load markdown sample from file
+      fetch('/render-sample.md')
+        .then(res => res.text())
+        .then(text => {
+          input.value = text;
+          input.readOnly = false;
+          input.disabled = false;
+          render();
+        })
+        .catch(err => {
+          console.error('Failed to load sample:', err);
+          input.value = '# Error loading sample\n\nFailed to load render-sample.md';
+          input.readOnly = false;
+          input.disabled = false;
+          render();
+        });
+
+      renderBtn.addEventListener('click', render);
+      input.addEventListener('input', render);
+    </script>
+  </body>
+</html>

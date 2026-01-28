@@ -1,0 +1,16 @@
+# Environment variables
+.env
+
+# Config files with secrets
+spockchat-config.json
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
