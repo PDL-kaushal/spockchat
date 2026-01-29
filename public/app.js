@@ -1125,14 +1125,22 @@ document.addEventListener("DOMContentLoaded", () => {
         const b = createBotMessageContainer();
         if (data.success) {
           // Build detailed message with individual server info
-          let detailedMessage = data.message || "MCP tools reloaded successfully";
+          let detailedMessage = "✅ **MCP Servers Reloaded**\n\n";
           if (data.successfulServers && data.successfulServers.length > 0) {
-            detailedMessage += "\n\nLoaded tools by server:";
             data.successfulServers.forEach((server) => {
-              detailedMessage += `\n• ${server.serverName}: ${server.toolCount} tool(s)`;
+              detailedMessage += `   - ${server.serverName}: ${server.toolCount} tools loaded\n`;
             });
+          } else {
+            detailedMessage += data.message || "MCP tools reloaded successfully";
           }
-          b.textContent = detailedMessage;
+
+          if (typeof marked !== "undefined") {
+            marked.setOptions({ breaks: true, gfm: true });
+            b.innerHTML = marked.parse(detailedMessage);
+          } else {
+            b.textContent = detailedMessage;
+            b.style.whiteSpace = "pre-wrap";
+          }
 
           // Show toast for overall success
           showToast(data.message || "MCP tools reloaded successfully", "success");
@@ -1150,20 +1158,29 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         } else {
           // Build detailed error message
-          let detailedMessage = "Error reloading MCP tools: " + (data.error || "Unknown error");
-          if (data.successfulServers && data.successfulServers.length > 0) {
-            detailedMessage += "\n\nSuccessfully loaded:";
-            data.successfulServers.forEach((server) => {
-              detailedMessage += `\n• ${server.serverName}: ${server.toolCount} tool(s)`;
-            });
-          }
+          let detailedMessage = "⚠️ **MCP Reload Issues**\n\n";
           if (data.failedServers && data.failedServers.length > 0) {
-            detailedMessage += "\n\nFailed servers:";
             data.failedServers.forEach((server) => {
-              detailedMessage += `\n• ${server.serverName}: ${server.error}`;
+              detailedMessage += `❌ **${server.serverName}**\n`;
+              detailedMessage += `   Error: ${server.error}\n\n`;
+            });
+          } else {
+            detailedMessage += "Error reloading MCP tools: " + (data.error || "Unknown error");
+          }
+          if (data.successfulServers && data.successfulServers.length > 0) {
+            detailedMessage += "✅ Successfully loaded:\n";
+            data.successfulServers.forEach((server) => {
+              detailedMessage += `   - ${server.serverName}: ${server.toolCount} tools loaded\n`;
             });
           }
-          b.textContent = detailedMessage;
+
+          if (typeof marked !== "undefined") {
+            marked.setOptions({ breaks: true, gfm: true });
+            b.innerHTML = marked.parse(detailedMessage);
+          } else {
+            b.textContent = detailedMessage;
+            b.style.whiteSpace = "pre-wrap";
+          }
           showToast("Error reloading MCP tools: " + (data.error || "Unknown error"), "error");
 
           // Show individual toasts for successful servers
