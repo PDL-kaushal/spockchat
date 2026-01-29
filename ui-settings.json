@@ -1,6 +1,6 @@
 {
   "theme": "auto",
-  "sidebarCollapsed": true,
+  "sidebarCollapsed": false,
   "fullWidth": false,
   "inputExpanded": true,
   "codeWrapEnabled": false,
