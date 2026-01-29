@@ -7,6 +7,7 @@
   --accent-2: #06b6d4;
   --user: #065f46;
   --bot: #0f172a;
+  --success: #16a34a;
   --surface: #f3f6fb;
   --surface-hover: #e8ecf3;
   --glass: rgba(2, 6, 23, 0.04);
@@ -32,6 +33,7 @@
   --accent-2: #06b6d4;
   --user: #10b981;
   --bot: #60a5fa;
+  --success: #22c55e;
   --surface: #0d1523;
   --surface-hover: #1a2332;
   --glass: rgba(255, 255, 255, 0.03);
@@ -56,6 +58,7 @@
   --accent-2: #06b6d4;
   --user: #065f46;
   --bot: #0f172a;
+  --success: #16a34a;
   --surface: #f3f6fb;
   --surface-hover: #e8ecf3;
   --glass: rgba(2, 6, 23, 0.04);
@@ -128,7 +131,7 @@ body {
 }
 .app.sidebar-collapsed {
   grid-template-columns: 0 1fr;
-  gap: 20px 0;
+  gap: 10px 0;
 }
 .app.sidebar-collapsed .config {
   width: 0;
@@ -252,6 +255,29 @@ body {
   font-weight: 400;
   letter-spacing: 0;
   line-height: 1.5;
+}
+
+.tool-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.tool-status.show {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .config h4 {

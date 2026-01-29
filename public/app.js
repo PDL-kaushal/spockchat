@@ -1943,7 +1943,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Create a separate bubble for the tool call
             const toolTimestamp = Number.isFinite(toolCallData.timestamp) ? toolCallData.timestamp : Date.now();
             const toolBubble = createBotMessageContainer(toolTimestamp);
-            toolBubble.innerHTML = `🔧 <strong>Calling tool:</strong> ${escapeHtml(toolCallData.name)}`;
+            toolBubble.innerHTML = `🔧 <strong>Calling tool:</strong> ${escapeHtml(toolCallData.name)} <span class="tool-status" aria-hidden="true">✓</span>`;
             toolBubble.style.background = "var(--surface-hover)";
             toolBubble.style.borderLeft = "3px solid var(--primary)";
             toolBubble.style.color = "var(--text)";
@@ -1976,7 +1976,7 @@ document.addEventListener("DOMContentLoaded", () => {
           try {
             const toolResultData = JSON.parse(eventData);
             // Find the corresponding tool bubble by ID
-            const toolBubbles = Array.from(chat.querySelectorAll(".msg.bot"));
+            const toolBubbles = Array.from(chat.querySelectorAll('.bubble[data-tool-call-id]'));
             const toolBubble = toolBubbles.find((bubble) => bubble.dataset.toolCallId === toolResultData.id);
 
             if (toolBubble) {
@@ -1988,6 +1988,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // Update the visual indicator to show completion
                 toolBubble.style.borderLeft = "3px solid var(--success)";
+                const statusEl = toolBubble.querySelector(".tool-status");
+                if (statusEl) statusEl.classList.add("show");
               }
             }
           } catch (e) {

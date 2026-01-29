@@ -1,8 +1,8 @@
 {
-  "theme": "light",
-  "sidebarCollapsed": false,
+  "theme": "auto",
+  "sidebarCollapsed": true,
   "fullWidth": false,
-  "inputExpanded": false,
+  "inputExpanded": true,
   "codeWrapEnabled": false,
   "modelAccordionOpen": false,
   "mcpAccordionOpen": false

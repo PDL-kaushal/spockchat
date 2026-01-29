@@ -824,6 +824,18 @@ async function streamFromModel(prompt, res, conversationHistory = [], previousRe
           const errorMsg = serverInfo
             ? `Error calling tool on MCP server "${serverInfo.serverName}": ${e.message}`
             : `Error calling tool: ${e.message}`;
+          try {
+            res.write(
+              `event: toolresult\ndata: ${JSON.stringify({
+                name: toolCall.function.name,
+                result: { error: errorMsg },
+                id: toolCall.id,
+                timestamp: Date.now(),
+              })}\n\n`,
+            );
+          } catch (writeErr) {
+            console.error("Failed to emit tool error event:", writeErr);
+          }
           newMessages.push({
             role: "tool",
             tool_call_id: toolCall.id,
