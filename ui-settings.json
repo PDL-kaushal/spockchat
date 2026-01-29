@@ -1,7 +1,7 @@
 {
   "theme": "light",
   "sidebarCollapsed": false,
-  "fullWidth": true,
+  "fullWidth": false,
   "inputExpanded": true,
   "codeWrapEnabled": false
 }

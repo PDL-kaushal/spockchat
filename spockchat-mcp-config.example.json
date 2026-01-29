@@ -1,0 +1,9 @@
+{
+  "mcpServers": [
+    {
+      "name": "example_mcp_server",
+      "httpUrl": "http://localhost:8080/mcp",
+      "stdioCmd": ""
+    }
+  ]
+}

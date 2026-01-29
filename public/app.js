@@ -77,14 +77,38 @@ document.addEventListener('DOMContentLoaded', () => {
       
       // Restore chat UI
       chat.innerHTML = '';
-      history.messages.forEach(msg => {
+      const baseTimestamp = history.timestamp || Date.now() - (history.messages.length * 1000);
+      history.messages.forEach((msg, index) => {
+        const messageTimestamp = Number.isFinite(msg.createdAt) ? msg.createdAt : baseTimestamp + index;
         if (msg.role === 'user') {
-          appendUserMessage(msg.content);
+          appendUserMessage(msg.content, messageTimestamp);
         } else if (msg.role === 'assistant') {
-          const botBubble = createBotMessageContainer();
+          const botBubble = createBotMessageContainer(messageTimestamp);
           renderMarkdownContent(botBubble, msg.content);
+          
+          // Store basic metadata for historical messages
+          // Find the previous user message for context
+          let userMessage = null;
+          for (let i = index - 1; i >= 0; i--) {
+            if (history.messages[i].role === 'user') {
+              userMessage = history.messages[i].content;
+              break;
+            }
+          }
+          
+          messageMetadata.set(botBubble, {
+            request: { prompt: userMessage, messages: [] },
+            response: { content: msg.content }
+          });
+          
+          // Add click listener
+          botBubble.addEventListener('click', () => {
+            showMessageDetails(botBubble);
+          });
         }
       });
+
+      sortChatByTimestamp();
       
       console.log('Chat history restored:', history.messages.length, 'messages');
     } catch (e) {
@@ -173,6 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Conversation history for context
   let conversationMessages = [];
+  
+  // Store message metadata (request/response pairs) for each message
+  const messageMetadata = new Map();
   
   // MCP servers array
   let mcpServers = [];
@@ -323,13 +350,13 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
         if (data.ui.inputExpanded !== undefined) {
+          const inputWrapper = document.querySelector('.inputWrapper');
           if (data.ui.inputExpanded) {
             prompt.classList.add('expanded');
-            prompt.style.height = '200px';
+            if (inputWrapper) inputWrapper.classList.add('expanded');
           } else {
             prompt.classList.remove('expanded');
-            prompt.style.height = 'auto';
-            prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
+            if (inputWrapper) inputWrapper.classList.remove('expanded');
           }
         }
       }
@@ -525,10 +552,15 @@ document.addEventListener('DOMContentLoaded', () => {
   <meta charset="utf-8">
   <title>SpockChat Chat Export</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f6f8fb; }
-    .msg { display: flex; margin-bottom: 16px; max-width: 80%; }
-    .msg.user { margin-left: auto; }
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 100%; margin: 0; padding: 40px 60px; background: #f6f8fb; }
+    .msg { display: flex; flex-direction: column; margin-bottom: 16px; max-width: 80%; }
+    .msg.user { margin-left: auto; align-items: flex-end; }
+    .msg.user .timestamp { text-align: right; }
+    .msg.bot .timestamp { text-align: left; }
+    .timestamp { font-size: 12px; color: #94a3b8; margin-top: 4px; }
     .msg .bubble { padding: 12px 16px; border-radius: 14px; line-height: 1.6; }
     .msg.user .bubble { background: #e0f2fe; color: #0c4a6e; }
     .msg.bot .bubble { background: #f1f5f9; color: #1e293b; }
@@ -683,27 +715,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Auto-resize textarea as user types
-    prompt.addEventListener('input', () => {
-      if (!prompt.classList.contains('expanded')) {
-        prompt.style.height = 'auto';
-        prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
-      }
-    });
+    // Input handler removed - expand/collapse handles sizing
   }
 
   // Expand/collapse textarea
   const expandTextarea = document.getElementById('expandTextarea');
-  if (expandTextarea) {
+  const inputWrapper = document.querySelector('.inputWrapper');
+  if (expandTextarea && inputWrapper) {
     expandTextarea.addEventListener('click', async () => {
+      // Toggle both classes
+      inputWrapper.classList.toggle('expanded');
       prompt.classList.toggle('expanded');
-      if (prompt.classList.contains('expanded')) {
-        prompt.style.height = '200px';
-      } else {
-        prompt.style.height = 'auto';
-        prompt.style.height = Math.min(prompt.scrollHeight, 200) + 'px';
-      }
+      
       const isExpanded = prompt.classList.contains('expanded');
+      
+      // Save state
       try {
         await fetch('/api/config', {
           method: 'POST',
@@ -713,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {
         console.error('Failed to save input expanded state:', e);
       }
-      // State is already in classList
+      
       prompt.focus();
     });
   }
@@ -732,7 +758,31 @@ document.addEventListener('DOMContentLoaded', () => {
     indicator.style.transform = `translateX(${left}px)`;
   }
 
-  function appendUserMessage(text) {
+  function insertMessageWrapper(wrapper, timestamp) {
+    const ts = Number.isFinite(timestamp) ? timestamp : Date.now();
+    wrapper.dataset.ts = String(ts);
+    const children = Array.from(chat.children);
+    const insertBefore = children.find(child => Number(child.dataset.ts || 0) > ts);
+    if (insertBefore) {
+      chat.insertBefore(wrapper, insertBefore);
+    } else {
+      chat.appendChild(wrapper);
+    }
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function sortChatByTimestamp() {
+    const items = Array.from(chat.children);
+    items.sort((a, b) => {
+      const ta = Number(a.dataset.ts || 0);
+      const tb = Number(b.dataset.ts || 0);
+      if (ta === tb) return 0;
+      return ta - tb;
+    });
+    items.forEach(item => chat.appendChild(item));
+  }
+
+  function appendUserMessage(text, timestamp) {
     const wrapper = document.createElement('div');
     wrapper.className = 'msg user';
     const bubble = document.createElement('div');
@@ -740,20 +790,30 @@ document.addEventListener('DOMContentLoaded', () => {
     bubble.style.whiteSpace = 'pre-wrap';
     bubble.textContent = text;
     wrapper.appendChild(bubble);
-    chat.appendChild(wrapper);
-    chat.scrollTop = chat.scrollHeight;
+    const ts = Number.isFinite(timestamp) ? timestamp : Date.now();
+    const tsElement = document.createElement('div');
+    tsElement.className = 'timestamp';
+    tsElement.textContent = new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    wrapper.appendChild(tsElement);
+    insertMessageWrapper(wrapper, timestamp);
   }
 
-  function createBotMessageContainer() {
+  function createBotMessageContainer(timestamp) {
     const wrapper = document.createElement('div');
     wrapper.className = 'msg bot';
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     bubble.setAttribute('data-is-markdown', 'true');
     bubble.textContent = '';
+    bubble.style.cursor = 'pointer';
+    bubble.title = 'Click to view request/response details';
     wrapper.appendChild(bubble);
-    chat.appendChild(wrapper);
-    chat.scrollTop = chat.scrollHeight;
+    const ts = Number.isFinite(timestamp) ? timestamp : Date.now();
+    const tsElement = document.createElement('div');
+    tsElement.className = 'timestamp';
+    tsElement.textContent = new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    wrapper.appendChild(tsElement);
+    insertMessageWrapper(wrapper, timestamp);
     return bubble;
   }
 
@@ -918,11 +978,63 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const b = createBotMessageContainer();
         if (data.success) {
-          b.textContent = data.message || 'MCP tools reloaded successfully';
+          // Build detailed message with individual server info
+          let detailedMessage = data.message || 'MCP tools reloaded successfully';
+          if (data.successfulServers && data.successfulServers.length > 0) {
+            detailedMessage += '\n\nLoaded tools by server:';
+            data.successfulServers.forEach(server => {
+              detailedMessage += `\n• ${server.serverName}: ${server.toolCount} tool(s)`;
+            });
+          }
+          b.textContent = detailedMessage;
+          
+          // Show toast for overall success
           showToast(data.message || 'MCP tools reloaded successfully', 'success');
+          
+          // Show individual toasts for each MCP server
+          if (data.successfulServers && data.successfulServers.length > 0) {
+            data.successfulServers.forEach((server, index) => {
+              setTimeout(() => {
+                showToast(`${server.serverName}: ${server.toolCount} tool(s) loaded`, 'success');
+              }, (index + 1) * 300);
+            });
+          }
         } else {
-          b.textContent = 'Error reloading MCP tools: ' + (data.error || 'Unknown error');
+          // Build detailed error message
+          let detailedMessage = 'Error reloading MCP tools: ' + (data.error || 'Unknown error');
+          if (data.successfulServers && data.successfulServers.length > 0) {
+            detailedMessage += '\n\nSuccessfully loaded:';
+            data.successfulServers.forEach(server => {
+              detailedMessage += `\n• ${server.serverName}: ${server.toolCount} tool(s)`;
+            });
+          }
+          if (data.failedServers && data.failedServers.length > 0) {
+            detailedMessage += '\n\nFailed servers:';
+            data.failedServers.forEach(server => {
+              detailedMessage += `\n• ${server.serverName}: ${server.error}`;
+            });
+          }
+          b.textContent = detailedMessage;
           showToast('Error reloading MCP tools: ' + (data.error || 'Unknown error'), 'error');
+          
+          // Show individual toasts for successful servers
+          if (data.successfulServers && data.successfulServers.length > 0) {
+            data.successfulServers.forEach((server, index) => {
+              setTimeout(() => {
+                showToast(`${server.serverName}: ${server.toolCount} tool(s) loaded`, 'success');
+              }, (index + 1) * 300);
+            });
+          }
+          
+          // Show individual toasts for failed servers
+          if (data.failedServers && data.failedServers.length > 0) {
+            data.failedServers.forEach((server, index) => {
+              const offset = (data.successfulServers?.length || 0) + index + 1;
+              setTimeout(() => {
+                showToast(`${server.serverName}: Failed - ${server.error}`, 'error');
+              }, offset * 300);
+            });
+          }
         }
       } catch (e) {
         const b = createBotMessageContainer();
@@ -978,9 +1090,56 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Message details modal handlers
+  const messageModal = document.getElementById('messageModal');
+  const closeMessageModal = document.getElementById('closeMessageModal');
+  const messageDetails = document.getElementById('messageDetails');
+
+  if (closeMessageModal && messageModal) {
+    closeMessageModal.addEventListener('click', () => {
+      messageModal.classList.remove('show');
+    });
+    
+    // Close modal when clicking outside
+    messageModal.addEventListener('click', (e) => {
+      if (e.target === messageModal) {
+        messageModal.classList.remove('show');
+      }
+    });
+  }
+
+  // Function to show message details
+  function showMessageDetails(bubble) {
+    const metadata = messageMetadata.get(bubble);
+    if (!metadata || !messageDetails) return;
+
+    let html = '';
+    
+    if (metadata.request) {
+      html += '<h4>Request</h4>';
+      html += '<pre><code>' + escapeHtml(JSON.stringify(metadata.request, null, 2)) + '</code></pre>';
+    }
+
+    if (metadata.response !== undefined && metadata.response !== null) {
+      html += '<h4>Response</h4>';
+      html += '<pre><code>' + escapeHtml(JSON.stringify(metadata.response, null, 2)) + '</code></pre>';
+    }
+
+    messageDetails.innerHTML = html;
+    messageModal.classList.add('show');
+  }
+
+  // Helper function to escape HTML
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   clearChat && clearChat.addEventListener('click', () => {
     chat.innerHTML = '';
     conversationMessages = [];
+    messageMetadata.clear();
     localStorage.removeItem('chatHistory');
   });
 
@@ -989,19 +1148,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const p = prompt.value.trim();
     if (!p) return;
     _isSending = true;
-    appendUserMessage(p);
+    const userTimestamp = Date.now();
+    appendUserMessage(p, userTimestamp);
+
+    // Build request data
+    const requestMessages = conversationMessages.map((msg) => {
+      const clean = { role: msg.role, content: msg.content };
+      if (msg.name) clean.name = msg.name;
+      if (msg.tool_call_id) clean.tool_call_id = msg.tool_call_id;
+      if (msg.tool_calls) clean.tool_calls = msg.tool_calls;
+      return clean;
+    });
+    const requestData = { prompt: p, messages: requestMessages };
 
     // Start SSE - send history WITHOUT the current message
     send.disabled = true;
     prompt.disabled = true;
-    const resp = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: p, messages: conversationMessages }) });
+    const resp = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestData) });
     
     // Add user message to conversation history AFTER sending
-    conversationMessages.push({ role: 'user', content: p });
+    conversationMessages.push({ role: 'user', content: p, createdAt: userTimestamp });
     saveChatHistory();
     if (!resp.ok) {
       const err = await resp.json();
-      const b = createBotMessageContainer();
+      const b = createBotMessageContainer(Date.now());
       b.textContent = 'Error: ' + (err.error || JSON.stringify(err));
       send.disabled = false;
       prompt.disabled = false;
@@ -1012,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buf = '';
-    const botBubble = createBotMessageContainer();
+    const botBubble = createBotMessageContainer(Date.now());
     
     // Add thinking indicator
     const thinkingSpan = document.createElement('span');
@@ -1024,8 +1194,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let chunkCount = 0;
     const appendChunk = (chunk) => {
       if (!chunk) return;
-      const needsSpace = fullText && !/[\s]/.test(fullText.slice(-1)) && !/^[\s.,;:!?)/\]]/.test(chunk);
-      if (needsSpace) fullText += ' ';
+      
+      // Don't add spaces - just concatenate
+      // The streaming should come with proper spacing from the server
       fullText += chunk;
     };
 
@@ -1044,7 +1215,82 @@ document.addEventListener('DOMContentLoaded', () => {
       buf = parts.pop(); // Keep incomplete event in buffer
       
       for (const part of parts) {
-        // Check if this is a data event
+        const lines = part.split('\n');
+        
+        // Check if this is an event-based SSE message
+        let eventType = null;
+        let eventData = null;
+        
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventType = line.substring(6).trim();
+          } else if (line.startsWith('data:')) {
+            eventData = line.substring(5).trim();
+          }
+        }
+        
+        // Handle tool call event
+        if (eventType === 'toolcall' && eventData) {
+          try {
+            const toolCallData = JSON.parse(eventData);
+            // Create a separate bubble for the tool call
+            const toolTimestamp = Number.isFinite(toolCallData.timestamp) ? toolCallData.timestamp : Date.now();
+            const toolBubble = createBotMessageContainer(toolTimestamp);
+            toolBubble.innerHTML = `🔧 <strong>Calling tool:</strong> ${escapeHtml(toolCallData.name)}`;
+            toolBubble.style.background = 'var(--surface-hover)';
+            toolBubble.style.borderLeft = '3px solid var(--primary)';
+            toolBubble.style.color = 'var(--text)';
+            toolBubble.dataset.toolCallId = toolCallData.id; // Store ID for later update
+            
+            // Store metadata for the tool call
+            messageMetadata.set(toolBubble, {
+              request: {
+                tool: toolCallData.name,
+                arguments: toolCallData.arguments,
+                id: toolCallData.id
+              },
+              response: null
+            });
+            
+            // Add click listener
+            toolBubble.addEventListener('click', () => {
+              showMessageDetails(toolBubble);
+            });
+            sortChatByTimestamp();
+          } catch (e) {
+            console.error('Error parsing tool call event:', e);
+          }
+          continue;
+        }
+        
+        // Handle tool result event
+        if (eventType === 'toolresult' && eventData) {
+          try {
+            const toolResultData = JSON.parse(eventData);
+            // Find the corresponding tool bubble by ID
+            const toolBubbles = Array.from(chat.querySelectorAll('.msg.bot'));
+            const toolBubble = toolBubbles.find(bubble => 
+              bubble.dataset.toolCallId === toolResultData.id
+            );
+            
+            if (toolBubble) {
+              // Update the metadata with the result
+              const metadata = messageMetadata.get(toolBubble);
+              if (metadata) {
+                metadata.response = toolResultData.result;
+                messageMetadata.set(toolBubble, metadata);
+                
+                // Update the visual indicator to show completion
+                toolBubble.style.borderLeft = '3px solid var(--success)';
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing tool result event:', e);
+          }
+          continue;
+        }
+        
+        // Handle regular data events
         if (part.startsWith('data:')) {
           // Extract everything after "data: " and parse JSON
           const jsonStr = part.replace(/^data:\s*/, '');
@@ -1083,6 +1329,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Remove thinking indicator now that we're ready to show formatted content
     thinkingSpan.remove();
+    const assistantTimestamp = Date.now();
+    if (botBubble && botBubble.parentElement) {
+      botBubble.parentElement.dataset.ts = String(assistantTimestamp);
+    }
     
     // Clear the bubble before rendering
     botBubble.innerHTML = '';
@@ -1169,16 +1419,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
+    // Store metadata for this message
+    messageMetadata.set(botBubble, {
+      request: requestData,
+      response: { content: fullText }
+    });
+
+    // Add click listener to show details
+    botBubble.addEventListener('click', () => {
+      showMessageDetails(botBubble);
+    });
+
     // Add assistant response to conversation history
-    conversationMessages.push({ role: 'assistant', content: fullText });
+    conversationMessages.push({ role: 'assistant', content: fullText, createdAt: assistantTimestamp });
     saveChatHistory();
+    sortChatByTimestamp();
 
     // done streaming
     send.disabled = false;
     prompt.disabled = false;
     prompt.value = '';
-    prompt.style.height = 'auto';
-    prompt.classList.remove('expanded');
     prompt.focus();
     _isSending = false;
   });

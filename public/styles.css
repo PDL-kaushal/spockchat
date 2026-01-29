@@ -8,11 +8,15 @@
   --user: #065f46;
   --bot: #0f172a;
   --surface: #f3f6fb;
+  --surface-hover: #e8ecf3;
   --glass: rgba(2,6,23,0.04);
   --text: #0b1220;
   --border: rgba(2,6,23,0.08);
   --shadow: 0 8px 20px rgba(2,6,23,0.08);
   --ring: color-mix(in srgb, var(--accent) 40%, transparent);
+  --primary: #7c3aed;
+  --code-bg: #1e1e1e;
+  --code-fg: #d4d4d4;
   /* Segmented control thumb for light */
   --seg-thumb-bg: #fff;
   --seg-thumb-border: var(--border);
@@ -29,11 +33,15 @@
   --user:#10b981;
   --bot:#60a5fa;
   --surface:#0d1523;
+  --surface-hover: #1a2332;
   --glass: rgba(255,255,255,0.03);
   --text: #e6eef8;
   --border: rgba(148,163,184,0.14);
   --shadow: 0 10px 28px rgba(2,6,23,0.55);
   --ring: color-mix(in srgb, var(--accent) 38%, transparent);
+  --primary: #70b7cc;
+  --code-bg: #0a0f1a;
+  --code-fg: #e6eef8;
   /* Segmented control thumb for dark */
   --seg-thumb-bg: rgba(255,255,255,0.12);
   --seg-thumb-border: rgba(148,163,184,0.25);
@@ -49,8 +57,13 @@
   --user: #065f46;
   --bot: #0f172a;
   --surface: #f3f6fb;
+  --surface-hover: #e8ecf3;
   --glass: rgba(2,6,23,0.04);
   --text: #0b1220;
+  --border: rgba(2,6,23,0.08);
+  --primary: #7c3aed;
+  --code-bg: #1e1e1e;
+  --code-fg: #d4d4d4;
 }
 *{box-sizing:border-box}
 html,body{height:100%; overflow:hidden}
@@ -141,23 +154,32 @@ body{
 .chatPanel{display:flex; flex-direction:column; height:100%; min-height:0; overflow:hidden}
 .panel{height:100%; overflow:hidden}
 .chatWrap{display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden}
-.chatWindow{flex:1; overflow-y:auto; overflow-x:hidden; padding:20px; background:var(--surface); border-radius:12px; border:1px solid var(--border); transition: padding .25s ease, border-radius .25s ease}
+.chatWindow{flex:1; overflow-y:auto; overflow-x:hidden; padding:20px; background:var(--glass); border-radius:12px; border:1px solid var(--border); transition: padding .25s ease, border-radius .25s ease}
 .app.full-width .chatWindow{padding:24px; border-radius:14px}
 
 /* Dark theme chat window subtle gradient */
 [data-theme="dark"] .chatWindow{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent)}
-.inputRow{display:flex; gap:10px; margin-top:12px; align-items:flex-end; position:relative}
-.inputRow input, .inputRow textarea{flex:1; padding:12px; padding-right:40px; border-radius:12px; border:1px solid var(--border); background:transparent; color:inherit; outline:none; transition: border-color .15s ease, box-shadow .15s ease, height .2s ease; font-family:inherit; font-size:inherit; line-height:1.5}
-.inputRow input:focus, .inputRow textarea:focus{border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring)}
-.inputRow textarea.expanded{height:200px !important}
-.expandTextarea{position:absolute; right:82px; bottom:10px; background:transparent; border:none; color:var(--muted); padding:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:1; border-radius:6px; transition: background .2s ease, color .2s ease; width:32px; height:32px}
-.expandTextarea:hover{background:var(--glass); color:var(--text)}
-.expandTextarea svg{flex-shrink:0}
+.inputRow{display:flex; gap:8px; margin-top:12px; align-items:flex-end; position:relative}
+.inputWrapper{position:relative; flex:1; display:flex; flex-direction:column}
+.inputWrapper textarea{padding:12px; padding-right:88px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:inherit; outline:none; transition: border-color .15s ease, box-shadow .15s ease, height .2s ease; font-family:inherit; font-size:inherit; line-height:1.5; resize:none; height:60px; overflow-y:hidden}
+.inputWrapper textarea:focus{border-color: var(--accent); box-shadow: 0 0 0 2px var(--ring)}
+.inputWrapper.expanded textarea{height:200px; overflow-y:auto}
+.inputControls{position:absolute; right:8px; bottom:8px; display:flex; gap:6px; align-items:center; pointer-events:none}
+.inputControls .btn-icon{padding:6px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; pointer-events:auto}
 
-.msg{display:flex; margin-bottom:12px; max-width:72%; animation: fadeInUp .18s ease; transition: max-width .25s ease}
+/* Red styling for clear chat button in header */
+.clear-chat-btn{color:#dc2626 !important; border-color:#dc2626 !important}
+.clear-chat-btn:hover{background:#dc2626 !important; color:white !important; border-color:#dc2626 !important}
+[data-theme="dark"] .clear-chat-btn{color:#ef4444 !important; border-color:#ef4444 !important}
+[data-theme="dark"] .clear-chat-btn:hover{background:#ef4444 !important; color:#1e293b !important}
+
+.msg{display:flex; margin-bottom:12px; max-width:72%; animation: fadeInUp .18s ease; transition: max-width .25s ease; flex-direction:column; gap:4px}
 .app.full-width .msg{max-width:86%}
 .msg .bubble{padding:12px 14px; border-radius:14px; line-height:1.55; overflow-x: auto; overflow-y: visible}
-.msg.user{margin-left:auto; justify-content:flex-end}
+.msg .timestamp{font-size:11px; color:var(--muted); padding:0 14px; opacity:1; transition:opacity .2s ease}
+.msg:hover .timestamp{opacity:1}
+.msg.user{margin-left:auto; justify-content:flex-end; align-items:flex-end}
+.msg.user .timestamp{text-align:right}
 .msg.user .bubble{background:color-mix(in srgb, var(--accent-2) 12%, transparent); color:var(--user); border:1px solid var(--border)}
 .msg.bot .bubble{background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--bot); border:1px solid var(--border); max-width: 100%}
 
@@ -494,6 +516,43 @@ body{
   font-size: 13px;
   color: var(--muted);
   line-height: 1.4;
+}
+
+/* Modal body code blocks */
+.modal-body pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+  margin: 0 0 20px 0;
+  border: 1px solid var(--border);
+  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.modal-body pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.modal-body h4 {
+  margin: 24px 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-body h4:first-child {
+  margin-top: 0;
 }
 
 @keyframes fadeIn {

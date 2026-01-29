@@ -11,8 +11,84 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-const CONFIG_FILE = path.join(__dirname, 'spockchat-config.json');
+const CONFIG_FILE = path.join(__dirname, 'spockchat-mcp-config.json');
 const UI_SETTINGS_FILE = path.join(__dirname, 'ui-settings.json');
+
+// Log level control via environment variable
+const LOGLEVEL = process.env.LOGLEVEL || 'error'; // 'error', 'info', 'debug'
+const logLevels = { error: 0, info: 1, debug: 2 };
+const currentLogLevel = logLevels[LOGLEVEL.toLowerCase()] || 0;
+
+// Create log file for debug mode
+// Control file logging with env var: LOG_TO_FILE=true|1
+// Optional: LOGFILE_DIR (directory) and LOGFILE_NAME (filename)
+let debugLogStream = null;
+const _envLogToFile = (process.env.LOG_TO_FILE || '').toLowerCase();
+const _enableFileLog = (currentLogLevel >= logLevels.debug) && (_envLogToFile === 'true' || _envLogToFile === '1');
+if (_enableFileLog) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace(/T/, '_').split('.')[0];
+  const defaultName = `spockchat-debug-${timestamp}.log`;
+  const logDir = process.env.LOGFILE_DIR ? path.resolve(process.env.LOGFILE_DIR) : __dirname;
+  const logFileName = process.env.LOGFILE_NAME || defaultName;
+  try {
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+  } catch (e) {
+    // ignore mkdir errors, fallback to current dir
+  }
+  const logFilePath = path.join(logDir, logFileName);
+  try {
+    debugLogStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+    console.log(`[DEBUG] Logging to file: ${logFilePath}`);
+  } catch (e) {
+    console.error('[DEBUG] Failed to open debug log file:', e.message);
+    debugLogStream = null;
+  }
+} else if (currentLogLevel >= logLevels.debug) {
+  // Informative note when debug level set but file logging disabled by env
+  console.log('[DEBUG] Debug logging enabled; set LOG_TO_FILE=true to write to debug file.');
+}
+
+// Conditional logging helpers
+function logDebug(...args) {
+  if (currentLogLevel >= logLevels.debug) {
+    const message = '[DEBUG] ' + args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+    ).join(' ');
+    console.log(message);
+    if (debugLogStream) {
+      debugLogStream.write(`${new Date().toISOString()} ${message}\n`);
+    }
+  }
+}
+
+function logInfo(...args) {
+  if (currentLogLevel >= logLevels.info) console.log('[INFO]', ...args);
+}
+
+// Per-event logging flags (defaults to false if not present in env)
+const LOG_TOOL_REQUEST = ((process.env.LOG_TOOL_REQUEST || '').toLowerCase() === 'true' || (process.env.LOG_TOOL_REQUEST || '') === '1');
+const LOG_TOOL_RESPONSE = ((process.env.LOG_TOOL_RESPONSE || '').toLowerCase() === 'true' || (process.env.LOG_TOOL_RESPONSE || '') === '1');
+const LOG_LLM_REQUEST = ((process.env.LOG_LLM_REQUEST || '').toLowerCase() === 'true' || (process.env.LOG_LLM_REQUEST || '') === '1');
+const LOG_LLM_RESPONSE = ((process.env.LOG_LLM_RESPONSE || '').toLowerCase() === 'true' || (process.env.LOG_LLM_RESPONSE || '') === '1');
+
+// Helper: conditional logging to console and optionally to debug file (if enabled)
+function envLog(flag, ...args) {
+  if (!flag) return;
+  const message = args.map(arg => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg))).join(' ');
+  try {
+    console.log(message);
+  } catch (e) {
+    // ignore console failures
+  }
+  // Also write to debug file only if the file stream exists (i.e., LOG_TO_FILE + debug level enabled)
+  if (debugLogStream) {
+    try {
+      debugLogStream.write(`${new Date().toISOString()} ${message}\n`);
+    } catch (e) {
+      // ignore file write errors
+    }
+  }
+}
 
 // Load config from file if it exists
 let config = {
@@ -27,6 +103,8 @@ let mcpInitResults = [];
 let toolServerMap = {};
 // Store per-server session IDs for MCP HTTP servers
 let mcpServerSessions = {};
+// Store per-server cookies for session persistence
+let mcpServerCookies = {};
 
 let uiSettings = {
   theme: 'auto',
@@ -156,6 +234,7 @@ app.post('/api/mcp/reload', async (req, res) => {
     const results = await loadAllMcpTools();
     const totalTools = Object.keys(toolServerMap).length;
     const failedServers = results.filter(r => !r.success);
+    const successfulServers = results.filter(r => r.success);
     
     if (failedServers.length > 0) {
       const failedNames = failedServers.map(r => r.serverName).join(', ');
@@ -163,14 +242,18 @@ app.post('/api/mcp/reload', async (req, res) => {
         success: false, 
         toolCount: totalTools,
         message: `Loaded ${totalTools} tools, but ${failedServers.length} server(s) failed: ${failedNames}`,
-        results
+        results,
+        successfulServers,
+        failedServers
       });
     } else {
       res.json({ 
         success: true, 
         toolCount: totalTools, 
         message: `Successfully loaded ${totalTools} tools from ${results.length} server(s)`,
-        results
+        results,
+        successfulServers,
+        failedServers: []
       });
     }
   } catch (err) {
@@ -193,7 +276,8 @@ app.get('/api/mcp/tools', async (req, res) => {
       if (!server.httpUrl) continue;
       
       try {
-        const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {});
+        const apiKey = getMcpServerApiKey(server.name);
+        const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {}, apiKey);
         if (mcpTools && mcpTools.tools && Array.isArray(mcpTools.tools)) {
           // Add server name to each tool for identification
           const toolsWithServer = mcpTools.tools.map(tool => ({
@@ -227,13 +311,15 @@ app.post('/api/mcp/test', async (req, res) => {
       serverUrl = server.httpUrl;
     } else if (config.mcpServers && config.mcpServers.length > 0) {
       serverUrl = config.mcpServers[0].httpUrl;
+      serverName = config.mcpServers[0].name;
     }
     
     if (!serverUrl) {
       return res.status(400).json({ success: false, error: 'No MCP server URL available' });
     }
     
-    const result = await callMcpHttp(serverUrl, method || 'tools/list', params || {});
+    const apiKey = getMcpServerApiKey(serverName);
+    const result = await callMcpHttp(serverUrl, method || 'tools/list', params || {}, apiKey);
     res.json({ success: true, result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -253,6 +339,8 @@ app.post('/api/chat', async (req, res) => {
 
   try {
     // Stream directly from model API with conversation history
+    console.log('New chat request received');
+    console.log(req.body);
     await streamFromModel(prompt, res, messages || []);
   } catch (err) {
     res.write(`event: error\ndata: ${JSON.stringify({ message: err.message })}\n\n`);
@@ -291,11 +379,13 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
         for (const server of config.mcpServers) {
           if (!server.httpUrl) continue;
           try {
-            const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {});
+            const apiKey = getMcpServerApiKey(server.name);
+            const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {}, apiKey);
             if (mcpTools && mcpTools.tools && Array.isArray(mcpTools.tools)) {
               allMcpTools.push(...mcpTools.tools);
             }
           } catch (e) {
+            console.log(e);
             // Continue with other servers if one fails
           }
         }
@@ -351,7 +441,7 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
       endpoint = apiBase;
       requestBody = { 
         messages: messages, 
-        max_tokens: 800,
+        max_tokens: 4096,
         stream: true
       };
       if (tools && tools.length > 0) {
@@ -364,7 +454,7 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
       requestBody = { 
         model: modelName, 
         messages: messages, 
-        max_tokens: 800,
+        max_tokens: 4096,
         stream: true
       };
       if (tools && tools.length > 0) {
@@ -373,10 +463,16 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
       }
     }
 
-    console.log('\n🤖 LLM Request:');
-    console.log('Messages:', JSON.stringify(messages.slice(-3), null, 2));
-    if (tools) console.log('Tools available:', tools.length);
-    console.log('─'.repeat(80));
+    envLog(LOG_LLM_REQUEST, '\n🤖 LLM Request:');
+    envLog(LOG_LLM_REQUEST, 'Messages:', JSON.stringify(messages.slice(-3), null, 2));
+    if (tools) envLog(LOG_LLM_REQUEST, 'Tools available:', tools.length);
+    // Log the full request body to debug log so we can inspect parameters and tools
+    try {
+      envLog(LOG_LLM_REQUEST, 'Request body:', JSON.stringify(requestBody, null, 2));
+    } catch (e) {
+      envLog(LOG_LLM_REQUEST, 'Request body: <unserializable>');
+    }
+    envLog(LOG_LLM_REQUEST, '─'.repeat(80));
 
     const apiRes = await fetch(endpoint, {
       method: 'POST',
@@ -397,7 +493,7 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
     let toolCalls = [];
     let currentToolCall = null;
     let assistantMessage = '';
-    console.log('\n📨 LLM Streaming Response:');
+    envLog(LOG_LLM_RESPONSE, '\n📨 LLM Streaming Response:');
 
     while (true) {
       const { done, value } = await reader.read();
@@ -416,10 +512,9 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
             const parsed = JSON.parse(data);
             const delta = parsed.choices?.[0]?.delta;
             
-            // Handle content
+            // Handle content (collect for final logging; do NOT print per-delta to server console)
             if (delta?.content) {
               assistantMessage += delta.content;
-              process.stdout.write(delta.content);
               res.write(`data: ${JSON.stringify(delta.content)}\n\n`);
             }
             
@@ -452,8 +547,8 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
 
     // If there are tool calls, execute them and continue conversation
     if (toolCalls.length > 0) {
-      console.log('\n\n🔧 Tool Calls Detected:', toolCalls.length);
-      console.log('─'.repeat(80));
+      envLog(LOG_TOOL_REQUEST, '\n\n🔧 Tool Calls Detected:', toolCalls.length);
+      envLog(LOG_TOOL_REQUEST, '─'.repeat(80));
       
       // Build new conversation history
       const newMessages = [...messages];
@@ -469,10 +564,16 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments || '{}');
           
-          console.log(`\n🔧 Tool Call: ${functionName}`);
-          console.log('📥 Arguments:', JSON.stringify(functionArgs, null, 2));
+          envLog(LOG_TOOL_REQUEST, `\n🔧 Tool Call: ${functionName}`);
+          envLog(LOG_TOOL_REQUEST, '📥 Arguments:', JSON.stringify(functionArgs, null, 2));
           
-          res.write(`data: ${JSON.stringify(`\n\n🔧 Calling tool: ${functionName}...\n`)}\n\n`);
+          // Send tool call event as a special event type
+          res.write(`event: toolcall\ndata: ${JSON.stringify({ 
+            name: functionName, 
+            arguments: functionArgs,
+            id: toolCall.id,
+            timestamp: Date.now()
+          })}\n\n`);
           
           // Find which server has this tool
           const serverInfo = toolServerMap[functionName];
@@ -480,20 +581,54 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
             throw new Error(`No server found for tool: ${functionName}`);
           }
           
+          const apiKey = getMcpServerApiKey(serverInfo.serverName);
+          
           // Call MCP server
           const toolResult = await callMcpHttp(serverInfo.url, 'tools/call', {
             name: functionName,
             arguments: functionArgs
-          });
+          }, apiKey);
           
-          console.log('📤 Tool Result:', JSON.stringify(toolResult, null, 2));
-          console.log('─'.repeat(80));
+          envLog(LOG_TOOL_RESPONSE, '📤 Tool Result:', JSON.stringify(toolResult, null, 2));
+          envLog(LOG_TOOL_RESPONSE, '─'.repeat(80));
+          
+          // Truncate large tool results to prevent transport failures
+          const MAX_TOOL_RESULT_SIZE = 50000; // 50KB limit
+          let toolResultForLLM = toolResult;
+          let toolResultForUI = toolResult;
+          const resultString = JSON.stringify(toolResult);
+          
+          if (resultString.length > MAX_TOOL_RESULT_SIZE) {
+            const truncated = resultString.substring(0, MAX_TOOL_RESULT_SIZE);
+            const truncatedObj = {
+              _truncated: true,
+              _originalSize: resultString.length,
+              _truncatedSize: MAX_TOOL_RESULT_SIZE,
+              _message: "Result was truncated due to size. Showing first 50KB.",
+              data: truncated + "... [TRUNCATED]"
+            };
+            toolResultForLLM = truncatedObj;
+            toolResultForUI = {
+              _truncated: true,
+              _originalSize: resultString.length,
+              _message: "Result too large to display. Check debug logs for full output."
+            };
+            envLog(LOG_TOOL_RESPONSE, `⚠️  Tool result truncated: ${resultString.length} bytes -> ${MAX_TOOL_RESULT_SIZE} bytes`);
+          }
+          
+          // Send tool result event back to UI
+          res.write(`event: toolresult\ndata: ${JSON.stringify({ 
+            name: functionName,
+            result: toolResultForUI,
+            id: toolCall.id,
+            timestamp: Date.now()
+          })}\n\n`);
           
           // Add tool response to conversation
           newMessages.push({
             role: 'tool',
             tool_call_id: toolCall.id,
-            content: JSON.stringify(toolResult)
+            content: JSON.stringify(toolResultForLLM)
           });
         } catch (e) {
           console.error('Tool call error:', e);
@@ -514,7 +649,7 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
       
       const followUpBody = {
         messages: newMessages,
-        max_tokens: 800,
+        max_tokens: 4096,
         stream: true
       };
       if (config.model.type === 'azure') {
@@ -530,9 +665,11 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
       });
       
       if (followUpRes.ok) {
-        console.log('\n📨 LLM Follow-up Response (after tool execution):');
+        logInfo('\n📨 LLM Follow-up Response (after tool execution):');
         const followReader = followUpRes.body.getReader();
         let followBuffer = '';
+        // collect follow-up assistant content for logging
+        let followUpAssistantContent = '';
         
         while (true) {
           const { done, value } = await followReader.read();
@@ -551,7 +688,9 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  process.stdout.write(content);
+                  // append to both streaming output and follow-up content collector
+                  followUpAssistantContent += content;
+                  assistantMessage += content;
                   res.write(`data: ${JSON.stringify(content)}\n\n`);
                 }
               } catch (e) {
@@ -560,15 +699,41 @@ async function streamFromModel(prompt, res, conversationHistory = []) {
             }
           }
         }
-        console.log('\n' + '─'.repeat(80));
+        envLog(LOG_LLM_RESPONSE, '\n' + '─'.repeat(80));
+        // Log the follow-up assistant content and any tool results
+        try {
+          envLog(LOG_LLM_RESPONSE, 'LLM Follow-up assistant content:', JSON.stringify(followUpAssistantContent, null, 2));
+        } catch (e) {
+          envLog(LOG_LLM_RESPONSE, 'LLM Follow-up assistant content: <unserializable>');
+        }
       }
     } else {
-      console.log('\n' + '─'.repeat(80));
+      envLog(LOG_LLM_RESPONSE, '\n' + '─'.repeat(80));
     }
+
+    // // Log the final assistant message and tool calls to debug log
+    // try {
+    //   envLog(LOG_LLM_RESPONSE, 'LLM Assistant full message:', JSON.stringify(assistantMessage, null, 2));
+    // } catch (e) {
+    //   envLog(LOG_LLM_RESPONSE, 'LLM Assistant full message: <unserializable>');
+    // }
+    // try {
+    //   envLog(LOG_TOOL_RESPONSE, 'LLM Tool calls (raw):', JSON.stringify(toolCalls || [], null, 2));
+    // } catch (e) {
+    //   envLog(LOG_TOOL_RESPONSE, 'LLM Tool calls: <unserializable>');
+    // }
 
     res.write('event: done\ndata: {}\n\n');
     res.end();
   }
+}
+
+// Helper to get API key for MCP server from environment
+function getMcpServerApiKey(serverName) {
+  if (!serverName) return null;
+  // Convert server name to env var format: "my_server" -> "MCP_MY_SERVER_API_KEY"
+  const envVarName = `MCP_${serverName.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+  return process.env[envVarName] || null;
 }
 
 async function callModel(prompt) {
@@ -603,12 +768,19 @@ async function callModel(prompt) {
       // For Azure, apiBase should be the full URL including deployment and api-version
       // e.g., https://xxx.cognitiveservices.azure.com/openai/deployments/gpt-4o/chat/completions?api-version=2024-05-01-preview
       endpoint = apiBase;
-      requestBody = { messages: [{ role: 'user', content: prompt }], max_tokens: 800 };
+      requestBody = { messages: [{ role: 'user', content: prompt }], max_tokens: 4096 };
     } else {
       // OpenAI uses standard chat completions
       headers['Authorization'] = `Bearer ${apiKey}`;
       endpoint = `${apiBase}/chat/completions`;
-      requestBody = { model: modelName, messages: [{ role: 'user', content: prompt }], max_tokens: 800 };
+      requestBody = { model: modelName, messages: [{ role: 'user', content: prompt }], max_tokens: 4096 };
+    }
+
+    try {
+      envLog(LOG_LLM_REQUEST, 'callModel - endpoint:', endpoint);
+      envLog(LOG_LLM_REQUEST, 'callModel - request body:', JSON.stringify(requestBody, null, 2));
+    } catch (e) {
+      envLog(LOG_LLM_REQUEST, 'callModel - request body: <unserializable>');
     }
 
     const res = await fetch(endpoint, {
@@ -628,6 +800,12 @@ async function callModel(prompt) {
     // Both Azure and OpenAI use same response format for chat completions
     const reply = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || 
                   JSON.stringify(data);
+    try {
+      envLog(LOG_LLM_RESPONSE, 'callModel - raw response:', JSON.stringify(data, null, 2));
+      envLog(LOG_LLM_RESPONSE, 'callModel - reply extracted:', JSON.stringify(reply, null, 2));
+    } catch (e) {
+      envLog(LOG_LLM_RESPONSE, 'callModel - response: <unserializable>');
+    }
     
     // Note: This non-streaming path is deprecated
     
@@ -638,13 +816,13 @@ async function callModel(prompt) {
   throw new Error('Unsupported model type');
 }
 
-async function callMcpHttp(serverUrl, method, params) {
+async function callMcpHttp(serverUrl, method, params, apiKey = null) {
   const fetch = global.fetch || (await import('node-fetch')).default;
   if (!serverUrl) throw new Error('MCP HTTP URL not provided');
   const req = { jsonrpc: '2.0', id: 1, method, params: params || {} };
   // Ensure we have a session for methods other than session creation
   if (!mcpServerSessions[serverUrl] && !/^session\/(create|start)$/i.test(method)) {
-    await ensureMcpSession(fetch, serverUrl);
+    await ensureMcpSession(fetch, serverUrl, apiKey);
   }
 
   // If a session exists, attach it via header and request params
@@ -657,35 +835,50 @@ async function callMcpHttp(serverUrl, method, params) {
     };
   }
 
+  const headers = {
+    'Content-Type': 'application/json',
+    // Some MCP servers require clients to advertise support for both JSON and SSE
+    'Accept': 'application/json; charset=utf-8, text/event-stream',
+    ...(sid ? {
+      'Mcp-Session-Id': sid,
+      'X-Session-Id': sid,
+      'X-Session': sid,
+      'X-MCP-Session-Id': sid,
+      'Cookie': mcpServerCookies[serverUrl] || `sessionId=${sid}`
+    } : {})
+  };
+
+  // Add API key header if provided
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    headers['X-API-Key'] = apiKey;
+  }
+
   let res = await fetch(serverUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      // Some MCP servers require clients to advertise support for both JSON and SSE
-      'Accept': 'application/json; charset=utf-8, text/event-stream',
-      ...(sid ? {
-        'X-Session-Id': sid,
-        'X-Session': sid,
-        'X-MCP-Session-Id': sid,
-        'Cookie': `sessionId=${sid}`
-      } : {})
-    },
+    headers,
     body: JSON.stringify(req)
   });
   // Retry with broader Accept header if server enforces negotiation (406)
   if (res.status === 406) {
+    const retryHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json; q=0.9, text/event-stream; q=0.8, */*; q=0.1',
+      ...(sid ? {
+        'Mcp-Session-Id': sid,
+        'X-Session-Id': sid,
+        'X-Session': sid,
+        'X-MCP-Session-Id': sid,
+        'Cookie': mcpServerCookies[serverUrl] || `sessionId=${sid}`
+      } : {})
+    };
+    if (apiKey) {
+      retryHeaders['Authorization'] = `Bearer ${apiKey}`;
+      retryHeaders['X-API-Key'] = apiKey;
+    }
     res = await fetch(serverUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json; q=0.9, text/event-stream; q=0.8, */*; q=0.1',
-        ...(sid ? {
-          'X-Session-Id': sid,
-          'X-Session': sid,
-          'X-MCP-Session-Id': sid,
-          'Cookie': `sessionId=${sid}`
-        } : {})
-      },
+      headers: retryHeaders,
       body: JSON.stringify(req)
     });
   }
@@ -693,19 +886,25 @@ async function callMcpHttp(serverUrl, method, params) {
   if (res.status === 400) {
     const text = await res.text();
     if (/Missing\s+session\s+ID/i.test(text)) {
-      await ensureMcpSession(fetch, serverUrl);
+      await ensureMcpSession(fetch, serverUrl, apiKey);
       const newSid = mcpServerSessions[serverUrl];
       const retryReq = { jsonrpc: '2.0', id: 1, method, params: { ...(params || {}), sessionId: newSid } };
+      const retryHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json; charset=utf-8, text/event-stream',
+        'Mcp-Session-Id': newSid,
+        'X-Session-Id': newSid,
+        'X-Session': newSid,
+        'X-MCP-Session-Id': newSid,
+        'Cookie': mcpServerCookies[serverUrl] || `sessionId=${newSid}`
+      };
+      if (apiKey) {
+        retryHeaders['Authorization'] = `Bearer ${apiKey}`;
+        retryHeaders['X-API-Key'] = apiKey;
+      }
       res = await fetch(serverUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json; charset=utf-8, text/event-stream',
-          'X-Session-Id': newSid,
-          'X-Session': newSid,
-          'X-MCP-Session-Id': newSid,
-          'Cookie': `sessionId=${newSid}`
-        },
+        headers: retryHeaders,
         body: JSON.stringify(retryReq)
       });
     } else {
@@ -717,18 +916,91 @@ async function callMcpHttp(serverUrl, method, params) {
     const text = await res.text();
     throw new Error(`MCP HTTP error: ${res.status} ${text}`);
   }
-  const data = await res.json();
-  return data.result || data.error || data;
+  const contentType = res.headers?.get?.('content-type') || '';
+  if (contentType.includes('text/event-stream')) {
+    const text = await res.text();
+    const dataLine = text.split('\n').find(line => line.startsWith('data: '));
+    if (!dataLine) {
+      throw new Error(`MCP HTTP error: ${res.status} ${text}`);
+    }
+    const jsonData = dataLine.slice(6);
+    const data = JSON.parse(jsonData);
+    return data.result || data.error || data;
+  }
+  try {
+    const data = await res.json();
+    return data.result || data.error || data;
+  } catch (e) {
+    const text = await res.text();
+    const dataLine = text.split('\n').find(line => line.startsWith('data: '));
+    if (!dataLine) throw e;
+    const jsonData = dataLine.slice(6);
+    const data = JSON.parse(jsonData);
+    return data.result || data.error || data;
+  }
 }
 
 // Ensure a session exists for the given server; tries common method names
-async function ensureMcpSession(fetch, serverUrl) {
+async function ensureMcpSession(fetch, serverUrl, apiKey = null) {
   if (mcpServerSessions[serverUrl]) return mcpServerSessions[serverUrl];
   const methodsToTry = ['session/create', 'session/start', 'sessions/create'];
   const baseHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json; charset=utf-8, text/event-stream'
   };
+  
+  // Add API key header if provided
+  if (apiKey) {
+    baseHeaders['Authorization'] = `Bearer ${apiKey}`;
+    baseHeaders['X-API-Key'] = apiKey;
+  }
+  
+  // First try MCP initialize -> notifications/initialized (FastMCP streamable-http)
+  try {
+    const initReq = {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'SpockChat', version: '0.1.0' }
+      }
+    };
+    const initRes = await fetch(serverUrl, { method: 'POST', headers: baseHeaders, body: JSON.stringify(initReq) });
+    const headerSid = initRes.headers?.get?.('mcp-session-id') || initRes.headers?.get?.('Mcp-Session-Id');
+    const setCookie = initRes.headers?.get?.('set-cookie');
+    if (setCookie) {
+      mcpServerCookies[serverUrl] = setCookie.split(';')[0];
+    }
+    let bodySid;
+    try {
+      const data = await initRes.json();
+      const result = data?.result || data;
+      bodySid = result?.sessionId || result?.session_id || result?.id || result?.sessionID;
+    } catch (e) {
+      bodySid = undefined;
+    }
+    const sid = headerSid || bodySid;
+    if (sid) {
+      mcpServerSessions[serverUrl] = sid;
+      const notifyReq = { jsonrpc: '2.0', method: 'notifications/initialized' };
+      await fetch(serverUrl, {
+        method: 'POST',
+        headers: {
+          ...baseHeaders,
+          'Mcp-Session-Id': sid,
+          'X-Session-Id': sid,
+          'X-MCP-Session-Id': sid,
+          ...(mcpServerCookies[serverUrl] ? { 'Cookie': mcpServerCookies[serverUrl] } : {})
+        },
+        body: JSON.stringify(notifyReq)
+      });
+      return sid;
+    }
+  } catch (e) {
+    // fall through to other strategies
+  }
   for (const m of methodsToTry) {
     try {
       const req = { jsonrpc: '2.0', id: 1, method: m, params: { clientInfo: { name: 'SpockChat', version: '0.1.0' } } };
@@ -779,7 +1051,8 @@ async function loadAllMcpTools() {
     }
     
     try {
-      const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {});
+      const apiKey = getMcpServerApiKey(server.name);
+      const mcpTools = await callMcpHttp(server.httpUrl, 'tools/list', {}, apiKey);
       if (mcpTools && mcpTools.tools && Array.isArray(mcpTools.tools)) {
         // Map each tool to its server URL and name
         for (const tool of mcpTools.tools) {
@@ -844,7 +1117,10 @@ function callMcpStdio(method, params) {
 
 const port = process.env.PORT || 5050;
 app.listen(port, async () => {
-  console.log(`SpockChat server listening on http://localhost:${port}`);
+  logInfo('');
+  logInfo('--------------------------------------------------------');
+  logInfo(`SpockChat server listening on http://localhost:${port}`);
+
   
   // Initialize MCP tools on startup only if servers are configured
   if (config.mcpServers && config.mcpServers.length > 0) {
@@ -852,25 +1128,25 @@ app.listen(port, async () => {
     const hasValidServer = config.mcpServers.some(s => s.httpUrl || s.stdioCmd);
     
     if (hasValidServer) {
-      console.log('Loading MCP tools from configured servers...');
+      logInfo('Loading MCP tools from configured servers...');
       mcpInitResults = await loadAllMcpTools();
       
       const successCount = mcpInitResults.filter(r => r.success).length;
       const failCount = mcpInitResults.filter(r => !r.success).length;
       const totalTools = Object.keys(toolServerMap).length;
       
-      console.log(`MCP Initialization: ${successCount} succeeded, ${failCount} failed, ${totalTools} tools loaded`);
+      logInfo(`MCP Initialization: ${successCount} succeeded, ${failCount} failed, ${totalTools} tools loaded`);
       
       if (failCount > 0) {
-        console.log('Failed servers:');
+        logInfo('Failed servers:');
         mcpInitResults.filter(r => !r.success).forEach(r => {
-          console.log(`  - ${r.serverName}: ${r.error}`);
+          logInfo(`  - ${r.serverName}: ${r.error}`);
         });
       }
     } else {
-      console.log('No MCP servers with valid URLs configured. Skipping MCP initialization.');
+      logInfo('No MCP servers with valid URLs configured. Skipping MCP initialization.');
     }
   } else {
-    console.log('No MCP servers configured. Skipping MCP initialization.');
+    logInfo('No MCP servers configured. Skipping MCP initialization.');
   }
 });

@@ -82,8 +82,38 @@
       if (!outputElement) {
         throw new Error('outputElement is required');
       }
-      const normalized = normalizeLatexDelimiters(source || '');
-      outputElement.innerHTML = md.render(normalized);
+      
+      // First normalize LaTeX delimiters
+      let normalized = normalizeLatexDelimiters(source || '');
+      
+      // Extract LaTeX blocks to protect them from markdown processing
+      const latexPlaceholders = [];
+      let processedText = normalized;
+      
+      // Store display math ($$...$$) and replace with placeholders using Unicode chars markdown won't touch
+      processedText = processedText.replace(/\$\$([\s\S]*?)\$\$/g, (match) => {
+        latexPlaceholders.push(match);
+        return `\u0001LATEX${latexPlaceholders.length - 1}LATEX\u0001`;
+      });
+      
+      // Store inline math ($...$)
+      processedText = processedText.replace(/\$([^\$\n]+?)\$/g, (match) => {
+        // Skip if it looks like a placeholder
+        if (match.includes('LATEX')) return match;
+        latexPlaceholders.push(match);
+        return `\u0002LATEX${latexPlaceholders.length - 1}LATEX\u0002`;
+      });
+      
+      // Render markdown with protected LaTeX
+      let html = md.render(processedText);
+      
+      // Restore LaTeX blocks
+      latexPlaceholders.forEach((latex, index) => {
+        html = html.replace(`\u0001LATEX${index}LATEX\u0001`, latex);
+        html = html.replace(`\u0002LATEX${index}LATEX\u0002`, latex);
+      });
+      
+      outputElement.innerHTML = html;
 
       const runHighlight = () => {
         if (!window.hljs) return;

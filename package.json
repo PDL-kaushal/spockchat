@@ -3,6 +3,26 @@
   "version": "0.1.0",
   "description": "Minimal chat UI + backend for configurable LLMs and MCP servers (JSON-RPC over HTTP/stdio)",
   "main": "server.js",
+  "license": "MIT",
+  "author": "SpockChat Contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PDL-kaushal/spockchat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PDL-kaushal/spockchat/issues"
+  },
+  "homepage": "https://github.com/PDL-kaushal/spockchat#readme",
+  "keywords": [
+    "llm",
+    "chatbot",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "openai",
+    "azure",
+    "chat-ui"
+  ],
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --config nodemon.json server.js"

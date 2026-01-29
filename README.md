@@ -35,6 +35,20 @@ Files added
 Security
 - This prototype stores configuration in memory only. Do not run with sensitive keys exposed to others. For production, secure storage and HTTPS are required.
 
+## License
+
+SpockChat is released under the [MIT License](LICENSE). See the [Third-Party Licenses](THIRD-PARTY-LICENSES.md) for information about dependencies.
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
+
+## Support
+
+- 🐛 [Report a bug](https://github.com/PDL-kaushal/spockchat/issues)
+- 💡 [Request a feature](https://github.com/PDL-kaushal/spockchat/issues)
+- 📖 [Documentation](https://github.com/PDL-kaushal/spockchat)
+
 
 ## Hyper-Minimal Chat UI with configurable LLM Models and MCP Servers
 
