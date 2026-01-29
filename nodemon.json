@@ -1,11 +1,9 @@
 {
   "watch": [
     "server.js",
-    "public",
-    "spockchat-config.json",
-    "ui-settings.json"
+    "public"
   ],
-  "ext": "js,json,html,css",
+  "ext": "js,html,css",
   "ignore": [
     "node_modules"
   ],

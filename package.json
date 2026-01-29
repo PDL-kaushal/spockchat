@@ -1,6 +1,6 @@
 {
   "name": "spockchat",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Minimal chat UI + backend for configurable LLMs and MCP servers (JSON-RPC over HTTP/stdio)",
   "main": "server.js",
   "license": "MIT",

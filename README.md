@@ -1,39 +1,45 @@
 # SpockChat
 
-This repository contains a minimal chat UI and backend (Node.js + static frontend) that lets you configure an LLM model and MCP servers (JSON-RPC) using HTTP or stdio transports.
+Minimal, configurable LLM + MCP UI (Node.js + static frontend) with Markdown/LaTeX rendering, tool support, and streaming responses.
 
 Features
-- Configure model type (mock or OpenAI-compatible), API key, and model name.
-- Configure MCP server via HTTP JSON-RPC URL or a stdio command.
-- Send prompts and receive streamed responses (SSE) in the UI.
+- Configure model type: mock, OpenAI, Azure AI Foundry, or Local LMStudio.
+- MCP servers via HTTP JSON-RPC or stdio.
+- Streaming responses (SSE) with unified Markdown + LaTeX rendering.
+- Message details modal with request/response, copy buttons, and LMStudio response IDs.
+- About modal listing open-source packages and versions.
 
 Quick start
 1. Install dependencies:
 
 ```bash
-cd /Users/nukxb24/Projects/spockchat
+cd /path/to/spockchat
 npm install
 ```
 
-2. Start server:
+2. Configure environment (optional):
+
+```bash
+cp .env.example .env
+cp spockchat-mcp-config.example.json spockchat-mcp-config.json
+```
+
+3. Start server:
 
 ```bash
 npm start
 ```
 
-3. Open `http://localhost:5050` in your browser.
+4. Open `http://localhost:5050` in your browser.
 
 Usage notes
-- To test tool integration with the mock model: submit a prompt containing the text `call_tool:` and the mock model will return a JSON instructing a tool call. If you configured an MCP HTTP URL, the server will forward the JSON-RPC request and include the tool result when asking the model to continue.
-- For real LLM usage, choose `openai` as model type and enter your API key and model name. The server posts to `/chat/completions` on the API base provided. This is a minimal adapter — for production you might want to add streaming via the model provider and robust error handling.
-
-Files added
-- `server.js` — backend with `/api/config` and `/api/chat` (SSE streaming)
-- `public/index.html`, `public/app.js` — frontend UI
-- `package.json` — project manifest
+- LMStudio uses `previous_response_id` for context; the client persists the latest response ID and sends it on subsequent prompts.
+- Render test page: `http://localhost:5050/render-test.html` (uses the same renderer as the chat UI).
+- UI preferences are saved in `ui-settings.json` (theme, sidebar, accordions, code wrap).
+- Logging is controlled by `LOGLEVEL` and optional flags: `LOG_LLM_REQUEST`, `LOG_LLM_RESPONSE`, `LOG_TOOL_REQUEST`, `LOG_TOOL_RESPONSE`, `LOG_TO_FILE`.
 
 Security
-- This prototype stores configuration in memory only. Do not run with sensitive keys exposed to others. For production, secure storage and HTTPS are required.
+- This prototype stores configuration in memory and UI settings in `ui-settings.json`. Do not expose sensitive keys; use secure storage and HTTPS in production.
 
 ## License
 

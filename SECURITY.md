@@ -26,7 +26,7 @@ May contain:
 
 ### 3. `ui-settings.json` - User Preferences
 Contains:
-- User-specific UI settings
+- User-specific UI settings (theme, layout, accordion states, code wrap)
 - Should not be shared across installations
 
 **Protection:** Already included in `.gitignore`
@@ -91,6 +91,10 @@ This dual-header approach ensures compatibility with different authentication sc
    LOGLEVEL=info npm start   # Development
    LOGLEVEL=debug npm start  # Only when debugging
    ```
+   Optional flags that can increase data exposure:
+   - `LOG_LLM_REQUEST`, `LOG_LLM_RESPONSE`
+   - `LOG_TOOL_REQUEST`, `LOG_TOOL_RESPONSE`
+   - `LOG_TO_FILE` (writes debug logs to disk)
 
 ### Production
 
@@ -102,6 +106,7 @@ This dual-header approach ensures compatibility with different authentication sc
    - Consider VPN or private networking
 4. **Logging:** 
    - Set `LOGLEVEL=error` to avoid logging sensitive data
+   - Avoid enabling per-event log flags in production
    - Never log API keys or tokens
 5. **Access Control:**
    - Add authentication to the Express server

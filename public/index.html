@@ -3,62 +3,126 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>SpockChat — Minimal</title>
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs.min.css">
+    <title>SpockChat — Minimal, Configurable LLM + MCP UI</title>
+    <link rel="icon" type="image/png" href="/assets/vulcan-salute-white.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/vs.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="/renderer.global.js"></script>
+    <style>
+      .search-match { background: #ffd580; color: inherit; border-radius: 4px; padding: 0 4px; }
+    </style>
   </head>
   <body>
     <div class="app" id="appContainer">
       <div class="header">
         <div class="brand">
-          <div class="logo"><img id="logoImg" src="/assets/vulcan-salute.svg" alt="SpockChat"/></div>
+          <div class="logo">
+            <img id="logoImg" class="logo-img logo-img--icon" src="/assets/vulcan-salute.svg" alt="SpockChat" />
+            <img class="logo-img logo-img--hover" src="/assets/spock-vulcan.png" alt="Spock" />
+          </div>
           <div>
             <div class="title">SpockChat</div>
-            <div class="subtitle">Minimal LLM + MCP front-end</div>
+            <div class="subtitle">Minimal, Configurable LLM + MCP UI</div>
           </div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center">
+        <div style="display: flex; gap: 10px; align-items: center">
           <button id="toggleWidth" class="btn-icon" title="Toggle wide layout">
             <!-- Expand icon (outwards) -->
-            <svg id="expandIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 8l-4 4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M17 8l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg
+              id="expandIcon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M7 8l-4 4 4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M17 8l4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
             <!-- Collapse icon (inwards) -->
-            <svg id="collapseIcon" style="display:none" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M7 8l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M17 8l-4 4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg
+              id="collapseIcon"
+              style="display: none"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M7 8l4 4-4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M17 8l-4 4 4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
           </button>
-          <div id="themeSegment" class="segmented" role="group" aria-label="Theme"> 
+          <div id="themeSegment" class="segmented" role="group" aria-label="Theme">
             <div class="indicator" aria-hidden="true"></div>
             <button type="button" data-theme="auto" aria-pressed="true" title="Auto">
               <!-- auto/system icon -->
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.6"/>
+                <path
+                  d="M12 3v3M12 18v3M3 12h3M18 12h3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.6" />
               </svg>
               <span>Auto</span>
             </button>
             <button type="button" data-theme="light" aria-pressed="false" title="Light">
               <!-- sun icon -->
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6"/>
-                <path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.6" />
+                <path
+                  d="M12 1v3M12 20v3M1 12h3M20 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
               </svg>
               <span>Light</span>
             </button>
             <button type="button" data-theme="dark" aria-pressed="false" title="Dark">
               <!-- moon icon -->
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="1.6" fill="none"/>
+                <path
+                  d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  fill="none"
+                />
               </svg>
               <span>Dark</span>
             </button>
@@ -67,99 +131,203 @@
       </div>
 
       <div class="panel config">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-          <h4 style="margin:0">Configuration</h4>
+        <div class="config-header">
+          <h4>Configuration</h4>
           <button id="toggleConfig" class="btn-icon" title="Toggle sidebar">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" stroke="currentColor" stroke-width="1.5"/>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15.75 19.5 8.25 12l7.5-7.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
             </svg>
           </button>
         </div>
-        <div class="field">
-          <label>Model Type</label>
-          <select id="modelType"><option value="mock">MOCK</option><option value="openai">OpenAI</option><option value="azure">Azure AI Foundry</option></select>
-        </div>
-        <div id="openaiFields" style="display:none;">
-          <div class="field">
-            <label>API Key</label>
-            <div style="position:relative">
-              <input id="apiKey" type="password" placeholder="sk-... or Azure key" style="padding-right:75px" />
-              <button id="copyKey" type="button" style="position:absolute; right:38px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; color:var(--muted)" title="Copy API Key">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.6"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.6"/>
-                </svg>
-              </button>
-              <button id="toggleKey" type="button" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); background:transparent; border:none; cursor:pointer; padding:4px; display:flex; align-items:center; color:var(--muted)" title="Show/Hide API Key">
-                <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Eye (visible when revealed) -->
-                  <g id="eyeOpen" style="display:none">
-                    <path d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor" opacity="0.6"/>
-                  </g>
-                  <!-- Eye-off (visible when masked) -->
-                  <g id="eyeClosed">
-                    <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" fill="currentColor" opacity="0.6"/>
-                  </g>
-                </svg>
-              </button>
+
+        <details id="modelAccordion" class="config-accordion" open>
+          <summary class="config-accordion__summary">
+            <span>Model</span>
+            <span class="config-accordion__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </summary>
+          <div class="config-accordion__content">
+            <div class="field">
+              <label>Model Type</label>
+              <select id="modelType">
+                <option value="mock">MOCK</option>
+                <option value="openai">OpenAI</option>
+                <option value="azure">Azure AI Foundry</option>
+                <option value="lmstudio">Local LMStudio</option>
+              </select>
+            </div>
+            <div id="openaiFields" style="display: none">
+              <div class="field">
+                <label>API Key</label>
+                <div class="config-input-with-actions">
+                  <input id="apiKey" type="password" placeholder="sk-... or Azure key" />
+                  <button id="copyKey" type="button" class="btn-icon btn-icon--inline" title="Copy API Key">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        fill="none"
+                        opacity="0.6"
+                      />
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        fill="none"
+                        opacity="0.6"
+                      />
+                    </svg>
+                  </button>
+                  <button id="toggleKey" type="button" class="btn-icon btn-icon--inline" title="Show/Hide API Key">
+                    <svg
+                      id="eyeIcon"
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <!-- Eye (visible when revealed) -->
+                      <g id="eyeOpen" style="display: none">
+                        <path
+                          d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                          fill="currentColor"
+                          opacity="0.6"
+                        />
+                      </g>
+                      <!-- Eye-off (visible when masked) -->
+                      <g id="eyeClosed">
+                        <path
+                          d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+                          fill="currentColor"
+                          opacity="0.6"
+                        />
+                      </g>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="field">
+                <label>Model / Deployment Name</label>
+                <input id="modelName" placeholder="gpt-4o-mini or your LMStudio model name" />
+              </div>
+              <div class="field">
+                <label>API Base URL</label>
+                <input id="apiBase" placeholder="https://api.openai.com/v1 or http://localhost:1234" />
+              </div>
+              <div class="small config-help">
+                <b>For Azure:</b> Include full path with deployment and api-version.<br /><b>For LMStudio:</b> Use
+                http://localhost:1234/v1 (or your LMStudio port)
+              </div>
             </div>
           </div>
-          <div class="field">
-            <label>Model / Deployment Name</label>
-            <input id="modelName" placeholder="gpt-4o-mini" />
-          </div>
-          <div class="field">
-            <label>API Base URL</label>
-            <input id="apiBase" placeholder="Full Azure URL or https://api.openai.com/v1" />
-          </div>
-          <div class="small" style="margin-top:-6px; margin-bottom:10px; color:var(--muted)">
-            For Azure: Include full path with deployment and api-version
-          </div>
-        </div>
+        </details>
 
-        <div class="field">
-          <label>MCP Servers</label>
-          <div id="mcpServersList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px">
-            <!-- MCP servers will be dynamically added here -->
+        <details id="mcpAccordion" class="config-accordion" open>
+          <summary class="config-accordion__summary">
+            <span>MCP Servers</span>
+            <span class="config-accordion__chevron" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M6 9l6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </summary>
+          <div class="config-accordion__content">
+            <div id="mcpServersList" class="config-list">
+              <!-- MCP servers will be dynamically added here -->
+            </div>
+            <button id="addMcpServer" class="btn secondary btn-block">+ Add MCP Server</button>
           </div>
-          <button id="addMcpServer" class="btn secondary" style="width:100%">+ Add MCP Server</button>
-        </div>
+        </details>
 
-        <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px">
-          <div style="display:flex; gap:8px">
-            <button id="saveConfig" class="btn">Export Config</button>
+        <div class="config-actions">
+          <div class="config-actions-row">
+            <button id="showTools" class="btn secondary">Show Tools</button>
             <button id="reloadMcp" class="btn secondary">Reload MCP Tools</button>
           </div>
-          <div style="display:flex; gap:8px">
-            <button id="showTools" class="btn secondary">Show Tools</button>
-          </div>
+          <button id="saveConfig" class="btn btn-block">Export Config</button>
+        </div>
+        <div class="config-footer-actions">
+          <a id="aboutBtn" class="config-footer-link" href="#">About</a>
+          <span class="config-footer-version">v0.0.1</span>
+        </div>
+        <div class="footerNote">
+          <a href="/render-test.html" target="_blank" rel="noopener">Markdown + LaTeX + highlightjs</a>
         </div>
         <div class="footerNote">Configuration is stored in memory only for this session.</div>
-        <div class="footerNote">
-          Renderer test page: <a href="/render-test.html" target="_blank" rel="noopener">Open test page</a>
-        </div>
       </div>
 
       <div class="panel chatPanel">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-          <div style="display:flex; align-items:center; gap:8px">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+          <div style="display: flex; align-items: center; gap: 8px">
             <button id="showConfig" class="btn-icon" title="Show configuration">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" stroke="currentColor" stroke-width="1.5"/>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" stroke="currentColor" stroke-width="1.5"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                />
               </svg>
             </button>
-            <h4 style="margin:0; font-size:14px; color:var(--muted)">Chat</h4>
+            <h4 style="margin: 0; font-size: 14px; color: var(--muted)">Chat</h4>
           </div>
-          <div style="display:flex; align-items:center; gap:8px">
+          <div style="display: flex; align-items: center; gap: 8px">
             <button id="clearChat" class="btn-icon clear-chat-btn" title="Clear chat history">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M6 7h12v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <path
+                  d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M6 7h12v-2a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                />
               </svg>
             </button>
             <button id="exportChat" class="btn-icon" title="Export chat as HTML">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path
+                  d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </button>
           </div>
@@ -168,18 +336,35 @@
           <div class="chatWindow" id="chat"></div>
           <div class="inputRow">
             <div class="inputWrapper">
-              <textarea id="prompt" placeholder="Type a prompt. Press Enter to send, Ctrl+Enter for new line." rows="1" style="resize:none; min-height:44px; max-height:200px; overflow-y:auto"></textarea>
+              <textarea
+                id="prompt"
+                placeholder="Type a prompt. Press Enter to send, Ctrl+Enter for new line."
+                rows="1"
+                style="resize: none; min-height: 44px; max-height: 200px; overflow-y: auto"
+              ></textarea>
               <div class="inputControls">
                 <button id="expandTextarea" class="btn-icon" title="Expand/Collapse input">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" stroke="currentColor" stroke-width="1.5"/>
-                    </svg>
-                  </button>
-                  <button id="send" class="btn-icon" title="Send message">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.6563168,11.6889879 C22.6563168,11.6889879 22.6563168,11.6889879 22.6563168,11.6889879 L4.13399899,2.8915341 C3.34915502,2.52016506 2.40734225,2.6272777 1.77946707,3.0985699 C0.994623095,3.72722436 0.837654326,4.81630199 1.15159189,5.6017888 L3.03521743,12.0427818 C3.03521743,12.1998792 3.03521743,12.3569766 3.50612381,12.3569766 L16.6915026,13.1424635 C16.6915026,13.1424635 17.1624089,13.1424635 17.1624089,12.5744748 C17.1624089,12.0064862 17.1624089,11.6889879 16.6915026,11.6889879 C16.6915026,11.6889879 16.3775651,11.6889879 16.6915026,12.4744748 Z" fill="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </button>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                    />
+                  </svg>
+                </button>
+                <button id="send" class="btn-icon" title="Send message">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.6563168,11.6889879 C22.6563168,11.6889879 22.6563168,11.6889879 22.6563168,11.6889879 L4.13399899,2.8915341 C3.34915502,2.52016506 2.40734225,2.6272777 1.77946707,3.0985699 C0.994623095,3.72722436 0.837654326,4.81630199 1.15159189,5.6017888 L3.03521743,12.0427818 C3.03521743,12.1998792 3.03521743,12.3569766 3.50612381,12.3569766 L16.6915026,13.1424635 C16.6915026,13.1424635 17.1624089,13.1424635 17.1624089,12.5744748 C17.1624089,12.0064862 17.1624089,11.6889879 16.6915026,11.6889879 C16.6915026,11.6889879 16.3775651,11.6889879 16.6915026,12.4744748 Z"
+                      fill="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -187,18 +372,6 @@
       </div>
 
       <div class="collapseOverlay" id="collapseOverlay"></div>
-      <div class="modal" id="messageModal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-          <h3 style="margin:0">Message Details</h3>
-          <button id="closeMessageModal" class="btn-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body" id="messageDetails"></div>
-      </div>
-    </div>
     </div>
 
     <!-- Modal for showing MCP tools -->
@@ -208,26 +381,124 @@
           <h3>Available MCP Tools</h3>
           <button id="closeModal" class="btn-icon" title="Close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path
+                d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
           </button>
+        </div>
+        <div style="padding:0 20px 12px; border-bottom:1px solid var(--border);">
+          <input id="toolsSearch" type="search" placeholder="Search tools (name, description, server)..." 
+                 style="width:100%; box-sizing:border-box; padding:10px 12px; margin-top:6px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text);"/>
         </div>
         <div id="toolsList" class="modal-body"></div>
       </div>
     </div>
 
-    <!-- Modal for showing message details -->
-    <div id="messageModal" class="modal">
-      <div class="modal-content" style="width: 50vw; height: 80vh; max-width: none; max-height: none;">
+    <!-- Modal for showing individual tool details -->
+    <div id="toolDetailModal" class="modal modal--tool">
+      <div class="modal-content">
         <div class="modal-header">
-          <h3>Message Details</h3>
-          <button id="closeMessageModal" class="btn-icon" title="Close">
+          <h3 id="toolDetailTitle">Tool Details</h3>
+          <button id="closeToolDetailModal" class="btn-icon" title="Close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
         </div>
-        <div id="messageDetails" class="modal-body" style="overflow-y: auto; height: calc(100% - 60px);"></div>
+        <div id="toolDetailBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Modal for About -->
+    <div id="aboutModal" class="modal modal--about">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>About SpockChat</h3>
+          <button id="closeAboutModal" class="btn-icon" title="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>
+            SpockChat started as an in-house experiment in an effort to provide a minimal chat interface to local models
+            and mcp servers.<br />You may fork this repo or contribute to the same via a pull request. Feel free to
+            contact the contributors on Github.
+          </p>
+          <h4>SpockChat uses the following npm packages</h4>
+          <div class="about-list">
+            <div class="about-item">
+              <div class="about-name">markdown-it</div>
+              <a href="https://github.com/markdown-it/markdown-it" target="_blank" rel="noopener">14.1.0</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">marked</div>
+              <a href="https://github.com/markedjs/marked" target="_blank" rel="noopener">17.0.1</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">KaTeX</div>
+              <a href="https://katex.org/" target="_blank" rel="noopener">0.16.9</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">Highlight.js</div>
+              <a href="https://highlightjs.org/" target="_blank" rel="noopener">11.9.0</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">express</div>
+              <a href="https://expressjs.com/" target="_blank" rel="noopener">4.18.2</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">body-parser</div>
+              <a href="https://github.com/expressjs/body-parser" target="_blank" rel="noopener">1.20.2</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">cors</div>
+              <a href="https://github.com/expressjs/cors" target="_blank" rel="noopener">2.8.5</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">dotenv</div>
+              <a href="https://github.com/motdotla/dotenv" target="_blank" rel="noopener">16.4.5</a>
+            </div>
+            <div class="about-item">
+              <div class="about-name">nodemon</div>
+              <a href="https://github.com/remy/nodemon" target="_blank" rel="noopener">3.1.11</a>
+            </div>
+          </div>
+          <div class="about-footer">© 2026 SpockChat Contributors</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal for showing message details -->
+    <div id="messageModal" class="modal modal--message">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Message Details</h3>
+          <button id="closeMessageModal" class="btn-icon" title="Close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M18 6L6 18M6 6l12 12"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+        <div id="messageDetails" class="modal-body"></div>
       </div>
     </div>
 

@@ -51,7 +51,8 @@ We are committed to providing a welcoming and inclusive environment. Please be r
 - Use meaningful variable names
 - Add comments for complex logic
 - Keep functions focused and concise
-- Use `logDebug()`, `logInfo()` for logging (respects `LOGLEVEL`)
+- Use `logDebug()`, `logInfo()` and `envLog()` for logging (respects `LOGLEVEL`)
+- Prefer gated logging flags: `LOG_LLM_REQUEST`, `LOG_LLM_RESPONSE`, `LOG_TOOL_REQUEST`, `LOG_TOOL_RESPONSE`
 
 ### Commit Message Guidelines
 
@@ -105,6 +106,7 @@ spockchat/
 │   └── renderer.global.js # Markdown rendering
 ├── .env                  # Environment config (not in git)
 ├── spockchat-mcp-config.json # MCP servers config
+├── ui-settings.json      # UI preferences (not in git)
 └── package.json
 ```
 

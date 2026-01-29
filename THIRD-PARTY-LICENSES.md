@@ -29,6 +29,21 @@ SpockChat uses the following open-source packages. We are grateful to the develo
 - Copyright: Christopher Jeffrey and Contributors
 - License: https://github.com/markedjs/marked/blob/master/LICENSE.md
 
+### markdown-it (MIT License)
+- Version: 14.1.0
+- Copyright: Vitaly Puzrin and Contributors
+- License: https://github.com/markdown-it/markdown-it/blob/master/LICENSE
+
+### KaTeX (MIT License)
+- Version: 0.16.9
+- Copyright: Khan Academy
+- License: https://github.com/KaTeX/KaTeX/blob/main/LICENSE
+
+### Highlight.js (BSD 3-Clause License)
+- Version: 11.9.0
+- Copyright: Ivan Sagalaev and Contributors
+- License: https://github.com/highlightjs/highlight.js/blob/main/LICENSE
+
 ## Development Dependencies
 
 ### nodemon (MIT License)
