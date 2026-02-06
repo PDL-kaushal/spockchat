@@ -22,14 +22,16 @@ May contain:
 - Server endpoints
 - Infrastructure details
 
-**Protection:** Now included in `.gitignore` ✅
+**Storage:** Stored in `~/.spockchat/spockchat-mcp-config.json` (user's home directory)
+**Protection:** Not in project directory, included in `.gitignore` for legacy files ✅
 
 ### 3. `ui-settings.json` - User Preferences
 Contains:
 - User-specific UI settings (theme, layout, accordion states, code wrap)
 - Should not be shared across installations
 
-**Protection:** Already included in `.gitignore`
+**Storage:** Stored in `~/.spockchat/ui-settings.json` (user's home directory)
+**Protection:** Not in project directory, no need for `.gitignore`
 
 ## API Key Management
 
@@ -121,8 +123,10 @@ Before committing, verify no secrets are exposed:
 # Check what would be committed
 git status
 
-# Verify .gitignore is working
+# Verify .gitignore is working (for legacy files)
 git check-ignore .env spockchat-mcp-config.json ui-settings.json
+
+# Note: Config files are now stored in ~/.spockchat/ by default
 
 # Search for potential secrets (should return nothing)
 git grep -i "api.key\|password\|secret" -- ':!SECURITY.md' ':!*.example'
@@ -145,8 +149,8 @@ Consider using tools like:
 
 ❌ **Never commit:**
 - `.env` - Contains real API keys
-- `spockchat-mcp-config.json` - May contain internal URLs
-- `ui-settings.json` - User-specific settings
+- `spockchat-mcp-config.json` - May contain internal URLs (now in `~/.spockchat/`)
+- `ui-settings.json` - User-specific settings (now in `~/.spockchat/`)
 - Any file with actual credentials
 
 ## Incident Response

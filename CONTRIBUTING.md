@@ -83,9 +83,11 @@ Update README with installation steps
 3. Configure environment:
    ```bash
    cp .env.example .env
-   cp spockchat-mcp-config.example.json spockchat-mcp-config.json
+   cp spockchat-mcp-config.example.json ~/.spockchat/spockchat-mcp-config.json
    # Edit both files with your settings
    ```
+
+   **Note:** Config files are stored in `~/.spockchat/` directory. The application will automatically create this directory on first run.
 
 4. Run in development mode:
    ```bash
@@ -105,9 +107,11 @@ spockchat/
 │   ├── styles.css        # Styling
 │   └── renderer.global.js # Markdown rendering
 ├── .env                  # Environment config (not in git)
-├── spockchat-mcp-config.json # MCP servers config
-├── ui-settings.json      # UI preferences (not in git)
 └── package.json
+
+~/.spockchat/              # User config directory (created automatically)
+├── spockchat-mcp-config.json # MCP servers config
+└── ui-settings.json      # UI preferences
 ```
 
 ## Testing

@@ -4,6 +4,7 @@ const cors = require("cors");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 require("dotenv").config();
 
 const app = express();
@@ -11,8 +12,28 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-const CONFIG_FILE = path.join(__dirname, "spockchat-mcp-config.json");
-const UI_SETTINGS_FILE = path.join(__dirname, "ui-settings.json");
+// Store config files in user's home directory under .spockchat
+const CONFIG_DIR = path.join(os.homedir(), ".spockchat");
+if (!fs.existsSync(CONFIG_DIR)) {
+  fs.mkdirSync(CONFIG_DIR, { recursive: true });
+}
+
+const CONFIG_FILE = path.join(CONFIG_DIR, "spockchat-mcp-config.json");
+const UI_SETTINGS_FILE = path.join(CONFIG_DIR, "ui-settings.json");
+
+// Check for legacy config files in project directory and migrate them
+const LEGACY_CONFIG_FILE = path.join(__dirname, "spockchat-mcp-config.json");
+const LEGACY_UI_SETTINGS_FILE = path.join(__dirname, "ui-settings.json");
+
+if (fs.existsSync(LEGACY_CONFIG_FILE) && !fs.existsSync(CONFIG_FILE)) {
+  console.log("[INFO] Migrating spockchat-mcp-config.json to", CONFIG_DIR);
+  fs.copyFileSync(LEGACY_CONFIG_FILE, CONFIG_FILE);
+}
+
+if (fs.existsSync(LEGACY_UI_SETTINGS_FILE) && !fs.existsSync(UI_SETTINGS_FILE)) {
+  console.log("[INFO] Migrating ui-settings.json to", CONFIG_DIR);
+  fs.copyFileSync(LEGACY_UI_SETTINGS_FILE, UI_SETTINGS_FILE);
+}
 
 // Log level control via environment variable
 const LOGLEVEL = process.env.LOGLEVEL || "error"; // 'error', 'info', 'debug'
@@ -1360,6 +1381,8 @@ app.listen(port, async () => {
   logInfo("");
   logInfo("--------------------------------------------------------");
   logInfo(`SpockChat server listening on http://localhost:${port}`);
+  logInfo(`Configuration directory: ${CONFIG_DIR}`);
+  logInfo("--------------------------------------------------------");
 
   // Initialize MCP tools on startup only if servers are configured
   if (config.mcpServers && config.mcpServers.length > 0) {
