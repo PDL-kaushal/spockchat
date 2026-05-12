@@ -195,6 +195,29 @@
 
       outputElement.innerHTML = html;
 
+      // Convert task list markdown syntax to checkboxes
+      const listItems = outputElement.querySelectorAll("li");
+      listItems.forEach((li) => {
+        const text = li.textContent || "";
+        const uncheckedMatch = text.match(/^\s*\[\s*\]\s+(.*)$/);
+        const checkedMatch = text.match(/^\s*\[x\]\s+(.*)$/i);
+
+        if (uncheckedMatch || checkedMatch) {
+          const isChecked = !!checkedMatch;
+          const taskText = uncheckedMatch ? uncheckedMatch[1] : checkedMatch[1];
+
+          // Create checkbox and label
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = isChecked;
+          
+          // Clear the li and rebuild it
+          li.innerHTML = "";
+          li.appendChild(checkbox);
+          li.append(taskText);
+        }
+      });
+
       const runHighlight = () => {
         if (!window.hljs) return;
         const blocks = outputElement.querySelectorAll("pre code");

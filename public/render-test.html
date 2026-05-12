@@ -172,6 +172,62 @@
         margin: 8px 0;
         line-height: 1.6;
       }
+
+      /* Checkbox styling for task lists */
+      .output input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        margin-right: 8px;
+        margin-top: 1px;
+        margin-bottom: 1px;
+        cursor: pointer;
+        vertical-align: middle;
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        border: 2px solid #d1d5db;
+        border-radius: 5px;
+        background-color: #ffffff;
+        background-size: 65% 65%;
+        background-repeat: no-repeat;
+        background-position: center;
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
+        display: inline-block;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .output input[type="checkbox"]:hover:not(:checked) {
+        border-color: #a78bfa;
+        background-color: #f5f3ff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      .output input[type="checkbox"]:active:not(:checked) {
+        transform: scale(0.95);
+      }
+
+      .output input[type="checkbox"]:checked {
+        background-color: #7c3aed;
+        border-color: #7c3aed;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .output input[type="checkbox"]:checked:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        filter: brightness(1.05);
+      }
+
+      .output input[type="checkbox"]:checked:active {
+        transform: scale(0.95);
+      }
+
+      .output input[type="checkbox"]:focus {
+        outline: none;
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+      }
       
       /* Syntax highlighting colors */
       .hljs-keyword { color: #0000ff; font-weight: 600; }
@@ -236,6 +292,7 @@
       const input = document.getElementById('texmeInput');
       const output = document.getElementById('outputBox');
       const renderBtn = document.getElementById('renderBtn');
+      const STORAGE_KEY = 'render-test-input';
 
       const renderer = window.createMarkdownRenderer();
 
@@ -243,25 +300,57 @@
         renderer.render(input.value, output);
       };
 
+      const saveToLocalStorage = (content) => {
+        // Only save if content differs from default
+        if (defaultContent && content === defaultContent) {
+          localStorage.removeItem(STORAGE_KEY);
+        } else if (content && content.trim()) {
+          localStorage.setItem(STORAGE_KEY, content);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      };
+
+      let defaultContent = '';
+
       // Load markdown sample from file
       fetch('/render-sample.md')
         .then(res => res.text())
         .then(text => {
-          input.value = text;
+          defaultContent = text;
+          
+          // Check if there's saved content in localStorage
+          const savedContent = localStorage.getItem(STORAGE_KEY);
+          
+          if (savedContent) {
+            // Use saved content
+            input.value = savedContent;
+          } else {
+            // Use default content
+            input.value = defaultContent;
+          }
+          
           input.readOnly = false;
           input.disabled = false;
           render();
         })
         .catch(err => {
           console.error('Failed to load sample:', err);
-          input.value = '# Error loading sample\n\nFailed to load render-sample.md';
+          const errorText = '# Error loading sample\n\nFailed to load render-sample.md';
+          defaultContent = errorText;
+          input.value = errorText;
           input.readOnly = false;
           input.disabled = false;
           render();
         });
 
       renderBtn.addEventListener('click', render);
-      input.addEventListener('input', render);
+      
+      input.addEventListener('input', () => {
+        render();
+        // Save to localStorage on edit
+        saveToLocalStorage(input.value);
+      });
     </script>
   </body>
 </html>
